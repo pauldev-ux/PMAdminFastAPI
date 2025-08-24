@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class SaleItemIn(BaseModel):
     product_id: int
     cantidad: int = Field(gt=0)
-    precio_unitario_bob: Decimal = Field(ge=0)
+    precio_unitario_bob: Optional[Decimal] = Field(default=None, ge=0)
 
 class SaleCreate(BaseModel):
     fecha_venta: date

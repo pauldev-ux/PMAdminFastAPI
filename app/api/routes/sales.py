@@ -50,17 +50,21 @@ def create_sale(data: SaleCreate, db: Session = Depends(get_db)):
 
         total = Decimal("0.00")
         for it in data.items:
-            subtotal = (Decimal(str(it.precio_unitario_bob)) * Decimal(it.cantidad)).quantize(Decimal("0.01"))
+            prod = prod_map[it.product_id]
+            # usa precio enviado o el del producto
+            precio = it.precio_unitario_bob if it.precio_unitario_bob is not None else prod.precio_venta
+            if precio is None:
+                raise HTTPException(status_code=400, detail=f"Producto {prod.id} no tiene precio_venta definido.")
+            subtotal = (Decimal(str(precio)) * Decimal(it.cantidad)).quantize(Decimal("0.01"))
             si = SaleItem(
                 sale_id=sale.id,
                 product_id=it.product_id,
                 cantidad=it.cantidad,
-                precio_unitario_bob=it.precio_unitario_bob,
+                precio_unitario_bob=precio,
                 subtotal_bob=subtotal,
             )
             db.add(si)
-            # Descontar stock
-            prod = prod_map[it.product_id]
+            # descontar stock
             prod.cantidad = (prod.cantidad or 0) - it.cantidad
             total += subtotal
 

@@ -6,9 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field
 class ProductBase(BaseModel):
     nombre: str
     brand_id: Optional[int] = None
-    precio_compra_clp: Decimal = Field(ge=0)
+    precio_compra: Decimal = Field(ge=0)
+    precio_venta: Decimal = Field(ge=0)
     cantidad: int = Field(ge=0)
     activo: bool = True
+    image_url: Optional[str] = None
 
 class ProductCreate(ProductBase):
     pass
@@ -16,9 +18,11 @@ class ProductCreate(ProductBase):
 class ProductUpdate(BaseModel):
     nombre: Optional[str] = None
     brand_id: Optional[int] = None
-    precio_compra_clp: Optional[Decimal] = Field(default=None, ge=0)
+    precio_compra: Optional[Decimal] = Field(default=None, ge=0)
+    precio_venta: Optional[Decimal] = Field(default=None, ge=0)
     cantidad: Optional[int] = Field(default=None, ge=0)
     activo: Optional[bool] = None
+    image_url: Optional[str] = None  # por si quieres setear/quitar URL manualmente
 
 class ProductOut(ProductBase):
     id: int

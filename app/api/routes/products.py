@@ -1,10 +1,14 @@
+import os
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.core.config import settings
 from app.db.models.product import Product
 from app.db.models.brand import Brand
 from app.schemas.product import ProductCreate, ProductOut, ProductUpdate
@@ -15,13 +19,7 @@ router = APIRouter(prefix="/products", tags=["products"])
 def create_product(data: ProductCreate, db: Session = Depends(get_db)):
     if data.brand_id is not None and not db.get(Brand, data.brand_id):
         raise HTTPException(status_code=404, detail="Marca no encontrada.")
-    product = Product(
-        nombre=data.nombre,
-        brand_id=data.brand_id,
-        precio_compra_clp=data.precio_compra_clp,
-        cantidad=data.cantidad,
-        activo=data.activo,
-    )
+    product = Product(**data.model_dump())
     db.add(product)
     db.commit()
     db.refresh(product)
@@ -81,3 +79,41 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.delete(product)
     db.commit()
     return None
+
+# ---------- Upload de imagen ----------
+@router.post("/{product_id}/image", response_model=ProductOut)
+async def upload_product_image(
+    product_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen.")
+
+    # construir ruta destino
+    base = Path(settings.STATIC_DIR)
+    uploads = base / settings.UPLOADS_SUBDIR
+    uploads.mkdir(parents=True, exist_ok=True)
+
+    ext = os.path.splitext(file.filename or "")[1].lower() or ".jpg"
+    safe_ext = ext if ext in {".jpg", ".jpeg", ".png", ".webp"} else ".jpg"
+    filename = f"product_{product_id}_{int(datetime.utcnow().timestamp())}{safe_ext}"
+    full_path = uploads / filename
+
+    # guardar archivo
+    data = await file.read()
+    if len(data) > 5_000_000:  # 5 MB
+        raise HTTPException(status_code=400, detail="Imagen demasiado grande (máx 5MB).")
+    with open(full_path, "wb") as f:
+        f.write(data)
+
+    # setear URL relativa servida por /static
+    product.image_url = f"{settings.MEDIA_URL}/{filename}"
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    return product

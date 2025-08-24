@@ -16,7 +16,7 @@ from app.core.hosts import add_trusted_hosts
 from app.api.deps import get_db
 from app.db.session import Base, engine
 from app.db import models
-
+from app.core.static_files import add_static
 from app.api.routes import brands, products, sales, auth
 
 app = FastAPI(
@@ -29,7 +29,7 @@ app = FastAPI(
 # Middlewares
 add_trusted_hosts(app)
 add_cors(app)
-
+add_static(app)
 
 # crea tablas al vuelo (luego pasamos a Alembic)
 Base.metadata.create_all(bind=engine)

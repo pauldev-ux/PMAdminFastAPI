@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://127.0.0.1:5173,http://localhost:5173"
     TRUSTED_HOSTS: str = "*"  # coma-separado
 
+
+    #actulizacionde algunos datos:
+    STATIC_DIR: str = "static"
+    UPLOADS_SUBDIR: str = "uploads"
+    MEDIA_URL: str = "/static/uploads"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
