@@ -18,6 +18,7 @@ from app.db.session import Base, engine
 from app.db import models
 from app.core.static_files import add_static
 from app.api.routes import brands, products, sales, auth
+from app.api.routes import lots as lots_router
 
 app = FastAPI(
     title="Perfumes Admin API",
@@ -53,4 +54,5 @@ app.include_router(brands.router)
 app.include_router(products.router)
 app.include_router(sales.router)
 app.include_router(auth.router)
+app.include_router(lots_router.router)
 

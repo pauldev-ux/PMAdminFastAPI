@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy import select
@@ -13,17 +14,59 @@ from app.db.models.product import Product
 from app.db.models.brand import Brand
 from app.schemas.product import ProductCreate, ProductOut, ProductUpdate
 
+from app.db.models.lot import Lot, LotItem
+
 router = APIRouter(prefix="/products", tags=["products"])
 
 @router.post("", response_model=ProductOut)
 def create_product(data: ProductCreate, db: Session = Depends(get_db)):
-    if data.brand_id is not None and not db.get(Brand, data.brand_id):
+    """Crea un producto y registra su alta en un lote EXISTENTE (no se crean lotes nuevos)."""
+    # 1) Validaciones de FK
+    if data.brand_id is not None and db.get(Brand, data.brand_id) is None:
         raise HTTPException(status_code=404, detail="Marca no encontrada.")
-    product = Product(**data.model_dump())
-    db.add(product)
-    db.commit()
-    db.refresh(product)
-    return product
+
+    lot = db.get(Lot, data.lot_id)
+    if lot is None:
+        raise HTTPException(status_code=404, detail="Lote no encontrado.")
+
+    if data.cantidad <= 0:
+        raise HTTPException(status_code=400, detail="La cantidad inicial debe ser mayor a 0.")
+
+    # 2) Crear producto + renglón del lote en UNA sola transacción
+    try:
+        # Crear producto
+        product = Product(
+            nombre=data.nombre,
+            brand_id=data.brand_id,
+            precio_compra=data.precio_compra,
+            precio_venta=data.precio_venta,
+            cantidad=data.cantidad,
+            activo=data.activo,
+        )
+        db.add(product)
+        db.flush()  # necesitamos el ID del producto
+
+        # Crear el item del lote con el costo y cantidad inicial
+        costo = Decimal(str(data.precio_compra))
+        subtotal = (costo * Decimal(data.cantidad)).quantize(Decimal("0.01"))
+
+        lot_item = LotItem(
+            lot_id=lot.id,
+            product_id=product.id,
+            cantidad=data.cantidad,
+            costo_unitario_bob=costo,
+            subtotal_bob=subtotal,
+        )
+        db.add(lot_item)
+
+        db.commit()
+        db.refresh(product)
+        return product
+
+    except Exception:
+        db.rollback()
+        raise
+
 
 @router.get("", response_model=list[ProductOut])
 def list_products(
