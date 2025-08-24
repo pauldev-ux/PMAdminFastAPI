@@ -7,9 +7,7 @@ from app.api.deps import get_db
 from app.db.session import Base, engine
 from app.db import models
 
-from app.api.routes import brands
-from app.api.routes import products
-from app.api.routes import sales
+from app.api.routes import brands, products, sales, auth
 
 app = FastAPI(title="Perfumes Admin API")
 
@@ -29,3 +27,5 @@ def health(db: Session = Depends(get_db)):
 app.include_router(brands.router)
 app.include_router(products.router)
 app.include_router(sales.router)
+app.include_router(auth.router)
+
